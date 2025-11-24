@@ -1,11 +1,11 @@
 import User from "../models/User.js";
-import sendEmail from "../utils/sendEmail.js";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { generateToken } from "../utils/jwt_token.js";
 import cloudinary from "../config/cloudinary.js";
 import dotenv from "dotenv";
 import { daysToMs } from "../utils/time.js";
+import { sendEmail } from "../utils/send-email.js";
 dotenv.config();
 
 export const register = async (req, res) => {
