@@ -5,7 +5,9 @@ dotenv.config();
 export const sendEmail = async ({ to, subject, html }) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      service: "Gmail",
+      host: "smtp.gmail.com",
+      port: 465,
       secure: true,
       auth: {
         user: process.env.EMAIL_USER,
@@ -19,7 +21,6 @@ export const sendEmail = async ({ to, subject, html }) => {
       subject,
       html,
     });
-
   } catch (error) {
     console.error("Email send error:", error);
     throw new Error("Email could not be sent");
