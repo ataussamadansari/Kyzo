@@ -267,20 +267,18 @@ export const setAvatar = async (req, res) => {
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-
     const user = await User.findOne({ email });
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user)
+      return res.status(200).json({
+        message: "If an account with that email exists, a reset link will be sent.",
+      });
 
-    // generate reset token
     const rawToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
     user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hr
     await user.save({ validateBeforeSave: false });
 
     const resetURL = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
@@ -298,19 +296,29 @@ export const forgotPassword = async (req, res) => {
       html,
     });
 
-    res.status(200).json({
-      message: "Password reset link sent to email.",
-    });
+    res.status(200).json({ message: "Password reset link sent to email.", resetURL });
   } catch (error) {
-    res.status(500).json({ message: error });
+    console.error("forgotPassword error:", error);
+    res.status(500).json({ message: error.message || "Server error" });
   }
 };
 
+
 export const resetPassword = async (req, res) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
+    // If client sent token in body or params, accept both
+    const token = req.params.token || req.body.token;
+    if (!token) return res.status(400).json({ message: "Reset token is required." });
 
+    // Accept multiple possible field names from frontend
+    const password = req.body.password || req.body.newPassword || req.body.new_password;
+    if (!password || typeof password !== "string" || password.trim().length < 8) {
+      return res.status(400).json({
+        message: "New password is required and must be at least 8 characters.",
+      });
+    }
+
+    // Hash token to match stored value
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
@@ -318,22 +326,21 @@ export const resetPassword = async (req, res) => {
       resetPasswordExpires: { $gt: Date.now() },
     });
 
-    if (!user)
-      return res.status(400).json({ message: "Invalid or expired token" });
+    if (!user) return res.status(400).json({ message: "Invalid or expired token." });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    // Hash password safely (directly using saltRounds is simpler)
+    const saltRounds = 10;
+    user.password = await bcrypt.hash(password, saltRounds);
 
+    // clear reset fields
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
     await user.save();
 
-    res.status(200).json({
-      message: "Password changed successfully",
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Server error" });
+    return res.status(200).json({ message: "Password changed successfully." });
+  } catch (err) {
+    console.error("resetPassword error:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
