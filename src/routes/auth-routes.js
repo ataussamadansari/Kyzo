@@ -9,7 +9,7 @@ authRouter.post("/register", register);
 authRouter.post("/login", login);
 authRouter.post("/username", auth, setUsername);
 authRouter.post("/set-avatar", auth, upload.single("image"), setAvatar);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+authRouter.post("/forgot-password", forgotPassword);
+authRouter.post("/reset-password/:token", resetPassword);
 
 export default authRouter;
