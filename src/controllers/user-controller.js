@@ -1,0 +1,200 @@
+import User from "../models/User.js";
+import bcrypt from "bcrypt";
+import dotenv from "dotenv";
+import { daysToMs } from "../utils/time.js";
+dotenv.config();
+
+// ====================== GET LOGGED IN USER ======================
+export const me = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== UPDATE PROFILE ======================
+export const updateMe = async (req, res) => {
+  const userId = req.user.id;
+  const { name, username, bio, avatar } = req.body;
+  try {
+    // Find User
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found!" });
+
+    const existUsername = await User.findOne({ username });
+    if (existUsername && username != user.username)
+      return res
+        .status(400)
+        .json({ message: username + " username already exist!" });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        name: name || user.name,
+        username: username || user.username,
+        bio: bio ?? user.bio,
+      },
+      {
+        new: true,
+      }
+    );
+
+    res.json({ message: "Profile updated", user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== CHANGE PASSWORD ======================
+export const changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user._id).select("+password");
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Old password incorrect" });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+
+    user.password = hash;
+    await user.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== GET RANDOM / SUGGESTED USERS ======================
+export const getSuggestedUsers = async (req, res) => {
+  try {
+    const myId = req.user.id;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 10));
+
+    // Logged in user - get following list
+    const me = await User.findById(myId).select("following");
+    if (!me) return res.status(404).json({ message: "User not found" });
+
+    // Build exclude array: include self + people you already follow
+    const exclude = [
+      me._id,
+      ...((me.following && me.following.map((f) => f)) || []),
+    ];
+
+    const skip = (page - 1) * limit;
+
+    const users = await User.aggregate([
+      {
+        $match: {
+          _id: { $nin: exclude }, // remove yourself and all following users
+          deleted: { $ne: true },
+        },
+      },
+      // sample from remaining users - choose a reasonable pool size
+      { $sample: { size: 100 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          name: 1,
+          username: 1,
+          avatar: 1,
+          bio: 1,
+        },
+      },
+    ]);
+
+    res.json({
+      page,
+      limit,
+      count: users.length,
+      users,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== GET USER PROFILE BY ID ========================
+export const getUserProfileById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id).select("-password");
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== GET USER PROFILE BY USERNAME ======================
+export const getUserProfile = async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const user = await User.findOne({ username }).select("-password");
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== DELETE ACCOUNT (SOFT DELETE - 15 MIN TEST) ======================
+export const deleteAccount = async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, {
+      deleted: true,
+      deleteAt: Date.now(), // store current timestamp
+    });
+
+    const days = process.env.DELETE_TIME_DAYS || 30;
+    return res.json({
+      message: `Account scheduled for deletion (You have ${days} day(s) to recover)`,
+      recoverWithinDays: Number(days),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== RECOVER ACCOUNT (15 MIN TEST) ======================
+export const recoverAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user.deleted)
+      return res.json({ message: "Account is already active" });
+
+    const diff = Date.now() - new Date(user.deleteAt).getTime();
+    const deleteWindowDays = Number(process.env.DELETE_TIME_DAYS || 30);
+    const ALLOWED_TIME = daysToMs(deleteWindowDays);
+
+
+    if (diff > ALLOWED_TIME) {
+      return res.status(400).json({
+        message: "Account permanently deleted (recovery window expired)"
+      });
+    }
+
+    // Restore account
+    user.deleted = false;
+    user.deleteAt = null;
+    await user.save();
+
+    res.json({ message: "Account recovered successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
