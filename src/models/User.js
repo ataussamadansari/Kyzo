@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      default: ""
+      default: "",
     },
     password: {
       type: String,
@@ -51,6 +51,8 @@ const userSchema = new mongoose.Schema(
     lastSeen: { type: Date, default: null },
     deleted: { type: Boolean, default: false },
     deleteAt: { type: Date, default: null },
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
   { timestamps: true }
 );

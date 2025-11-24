@@ -1,5 +1,5 @@
 import express from "express";
-import { login, register, setAvatar, setUsername } from "../controllers/auth-controller.js";
+import { forgotPassword, login, register, resetPassword, setAvatar, setUsername } from "../controllers/auth-controller.js";
 import { auth } from '../middlewares/auth-middleware.js';
 import { upload } from "../config/multer.js";
 
@@ -9,5 +9,7 @@ authRouter.post("/register", register);
 authRouter.post("/login", login);
 authRouter.post("/username", auth, setUsername);
 authRouter.post("/set-avatar", auth, upload.single("image"), setAvatar);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
 
 export default authRouter;

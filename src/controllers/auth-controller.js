@@ -1,4 +1,6 @@
 import User from "../models/User.js";
+import sendEmail from "../utils/sendEmail.js";
+import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { generateToken } from "../utils/jwt_token.js";
 import cloudinary from "../config/cloudinary.js";
@@ -259,5 +261,79 @@ export const setAvatar = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error: " + error });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // generate reset token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    await user.save({ validateBeforeSave: false });
+
+    const resetURL = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
+
+    const html = `
+      <h2>Password Reset Request</h2>
+      <p>Click the link below to reset your password:</p>
+      <a href="${resetURL}" target="_blank">${resetURL}</a>
+      <p>This link expires in 1 hour.</p>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset Link",
+      html,
+    });
+
+    res.status(200).json({
+      message: "Password reset link sent to email.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user)
+      return res.status(400).json({ message: "Invalid or expired token" });
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
