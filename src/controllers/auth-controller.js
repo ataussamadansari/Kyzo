@@ -274,14 +274,15 @@ export const forgotPassword = async (req, res) => {
         message: "If an account with that email exists, a reset link will be sent.",
       });
 
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
     user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hr
-    await user.save({ validateBeforeSave: false });
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10
+    await user.save();
 
-    const resetURL = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
+    const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const html = `
       <h2>Password Reset Request</h2>
@@ -338,9 +339,9 @@ export const resetPassword = async (req, res) => {
 
     await user.save();
 
-    return res.status(200).json({ message: "Password changed successfully." });
+    res.status(200).json({ message: "Password changed successfully." });
   } catch (err) {
     console.error("resetPassword error:", err);
-    return res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error: " + err.message });
   }
 };

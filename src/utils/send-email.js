@@ -5,10 +5,7 @@ dotenv.config();
 export const sendEmail = async ({ to, subject, html }) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "Gmail",
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -19,7 +16,7 @@ export const sendEmail = async ({ to, subject, html }) => {
       from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
       to,
       subject,
-      html,
+      html: html || text,
     });
   } catch (error) {
     console.error("Email send error:", error);
