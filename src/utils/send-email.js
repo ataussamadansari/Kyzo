@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const sendEmail = async ({ to, subject, text, html }) => {
   try {
@@ -30,6 +32,9 @@ export const sendEmail = async ({ to, subject, text, html }) => {
   }
 };
 
+export const resendEmail = async({ to, subject, html }) => {
+  
+}
 
 
 // import nodemailer from "nodemailer";
