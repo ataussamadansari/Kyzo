@@ -347,7 +347,7 @@ export const forgotPassword = async (req, res) => {
     await sendEmail({
       to: user.email,
       subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
-      text: `Click the link to reset your password: ${resetURL}`,
+      html: html
     });
 
     res.json({ message: "Reset link sent to your email.", resetURL });

@@ -3,11 +3,11 @@ import { Resend } from "resend";
 import dotenv from "dotenv";
 dotenv.config();
 
+// NODEMAILER 
 export const sendEmail = async ({ to, subject, text, html }) => {
   try {
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      host: "smtp.forwardemail.net",
       port: 465,
       secure: true,
       auth: {
@@ -25,12 +25,13 @@ export const sendEmail = async ({ to, subject, text, html }) => {
     };
 
     const mail = await transporter.sendMail(mailOptions);
-    console.log(mail);
   } catch (error) {
     console.log("Email error:", error.message);
     throw new Error("Email could not be sent" + error.message);
   }
 };
+
+// RESNED 
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
