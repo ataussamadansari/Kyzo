@@ -34,8 +34,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export const resendEmail = async ({ to, subject, html }) => {
   try {
     const data = resend.emails.send({
-      // from: process.env.EMAIL_USER,
-      from: "onboarding@resend.dev",
+      from: process.env.EMAIL_USER,
       to: to,
       subject: subject,
       html: html,
