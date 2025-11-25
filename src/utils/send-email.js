@@ -1,11 +1,12 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import dotenv from "dotenv";
 dotenv.config();
 
 export const sendEmail = async ({ to, subject, text, html }) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail", 
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -22,17 +23,23 @@ export const sendEmail = async ({ to, subject, text, html }) => {
 
     const mail = await transporter.sendMail(mailOptions);
     console.log(mail);
-
   } catch (error) {
     console.log("Email error:", error.message);
     throw new Error("Email could not be sent" + error.message);
   }
 };
 
-export const resendEmail = async({ to, subject, html }) => {
-  
-}
+const resend = new Resend(process.env.RESEND_API_KEY);
 
+export const resendEmail = async ({ to, subject, html }) => {
+
+  resend.emails.send({
+    from: process.env.EMAIL_USER,
+    to: to,
+    subject: subject,
+    html: html,
+  });
+};
 
 // import nodemailer from "nodemailer";
 // import dotenv from "dotenv";

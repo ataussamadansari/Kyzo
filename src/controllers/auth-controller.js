@@ -5,7 +5,7 @@ import { generateToken } from "../utils/jwt_token.js";
 import cloudinary from "../config/cloudinary.js";
 import dotenv from "dotenv";
 import { daysToMs } from "../utils/time.js";
-import { sendEmail } from "../utils/send-email.js";
+import { resendEmail, sendEmail } from "../utils/send-email.js";
 dotenv.config();
 
 export const register = async (req, res) => {
@@ -328,12 +328,27 @@ export const forgotPassword = async (req, res) => {
     // Reset link
     const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
+    const html = `
+      <h2>Password Reset Request</h2>
+      <p>Click the link below to reset your password:</p>
+      <a href="${resetURL}" target="_blank">${resetURL}</a>
+      <p>This link expires in 10 min.</p>
+    `;
+
     // Send email
-    await sendEmail({
+    // 1) RESEND
+    await resendEmail({
       to: user.email,
       subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
-      text: `Click the link to reset your password: ${resetURL}`,
+      html: html
     });
+
+    // 2)  SMTP
+    // await sendEmail({
+    //   to: user.email,
+    //   subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
+    //   text: `Click the link to reset your password: ${resetURL}`,
+    // });
 
     res.json({ message: "Reset link sent to your email.", resetURL });
   } catch (err) {
