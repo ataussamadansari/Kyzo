@@ -5,7 +5,7 @@ import { generateToken } from "../utils/jwt_token.js";
 import cloudinary from "../config/cloudinary.js";
 import dotenv from "dotenv";
 import { daysToMs } from "../utils/time.js";
-import sendEmail from "../utils/send-email.js";
+import { sendEmail } from "../utils/send-email.js";
 dotenv.config();
 
 export const register = async (req, res) => {
@@ -304,14 +304,12 @@ export const setAvatar = async (req, res) => {
 //   }
 // };
 
-
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ message: "Email not found!" });
+    if (!user) return res.status(404).json({ message: "Email not found!" });
 
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -334,11 +332,10 @@ export const forgotPassword = async (req, res) => {
     await sendEmail({
       to: user.email,
       subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
-      text: `Click the link to reset your password: ${resetURL}`
+      text: `Click the link to reset your password: ${resetURL}`,
     });
 
-    res.json({ message: "Reset link sent to your email.", resetURL});
-
+    res.json({ message: "Reset link sent to your email.", resetURL });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -350,14 +347,11 @@ export const resetPassword = async (req, res) => {
     const { newPassword } = req.body;
 
     // Convert token to hashed token for DB lookup
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() }
+      resetPasswordExpire: { $gt: Date.now() },
     });
 
     if (!user)
@@ -372,7 +366,6 @@ export const resetPassword = async (req, res) => {
     await user.save();
 
     res.json({ message: "Password reset successfully!" });
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
