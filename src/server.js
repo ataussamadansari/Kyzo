@@ -18,7 +18,7 @@ io.on("connection", (socket) => {
     console.log("🔥 User connected:", socket.id);
 });
 
-connectDB();
+connectDB().catch((err) => console.error("DB connection failed:", err));
 
 const PORT = process.env.PORT || 5000;
 
