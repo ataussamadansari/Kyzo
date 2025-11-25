@@ -1,9 +1,9 @@
 import http from "http";
 import app from "./app.js";
 import { Server } from "socket.io";
-import { connectDB } from "./config/db.js";
 import dotenv from "dotenv";
 import "./cron/delete-expired-users.js";
+import connectDB from "./config/db.js";
 dotenv.config();
 
 const server = http.createServer(app);
