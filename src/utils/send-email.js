@@ -11,7 +11,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
     });
 
     const mailOptions = {
-      from: `"Your App" <${process.env.EMAIL_USER}>`,
+      from: `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_USER}>`,
       to,
       subject,
       text,
@@ -19,8 +19,6 @@ const sendEmail = async ({ to, subject, text, html }) => {
     };
 
     await transporter.sendMail(mailOptions);
-
-    console.log("Email sent to:", to);
 
   } catch (error) {
     console.log("Email error:", error.message);

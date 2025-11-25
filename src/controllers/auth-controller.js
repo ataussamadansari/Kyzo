@@ -333,11 +333,11 @@ export const forgotPassword = async (req, res) => {
     // Send email
     await sendEmail({
       to: user.email,
-      subject: "Reset Password Link",
+      subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
       text: `Click the link to reset your password: ${resetURL}`
     });
 
-    res.json({ message: "Reset link sent to your email." });
+    res.json({ message: "Reset link sent to your email.", resetURL});
 
   } catch (err) {
     res.status(500).json({ message: err.message });
