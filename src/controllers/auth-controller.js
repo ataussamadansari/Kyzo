@@ -337,18 +337,18 @@ export const forgotPassword = async (req, res) => {
 
     // Send email
     // 1) RESEND
-    await resendEmail({
-      to: user.email,
-      subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
-      html: html
-    });
-
-    // 2)  SMTP
-    // await sendEmail({
+    // await resendEmail({
     //   to: user.email,
     //   subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
-    //   text: `Click the link to reset your password: ${resetURL}`,
+    //   html: html
     // });
+
+    // 2)  SMTP
+    await sendEmail({
+      to: user.email,
+      subject: "Reset Password Link by " + process.env.EMAIL_FROM_NAME,
+      text: `Click the link to reset your password: ${resetURL}`,
+    });
 
     res.json({ message: "Reset link sent to your email.", resetURL });
   } catch (err) {

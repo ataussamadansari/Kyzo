@@ -7,6 +7,9 @@ export const sendEmail = async ({ to, subject, text, html }) => {
   try {
     const transporter = nodemailer.createTransport({
       service: "gmail",
+      host: "smtp.forwardemail.net",
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -34,13 +37,13 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export const resendEmail = async ({ to, subject, html }) => {
   try {
     const data = resend.emails.send({
-      from: process.env.EMAIL_USER,
+      from: `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_USER}>`,
       to: to,
       subject: subject,
       html: html,
     });
   } catch (error) {
-    throw("Email not sent: " + error.message);
+    throw "Email not sent: " + error.message;
   }
 };
 
