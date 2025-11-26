@@ -289,7 +289,6 @@ export const setAvatar = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Upload successful",
-      avatar: updatedUser.avatar,
       user: updatedUser,
     });
   } catch (error) {
