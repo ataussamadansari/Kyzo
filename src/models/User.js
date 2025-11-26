@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema(
     },
     username: {
       type: String,
-      // unique: true,
+      unique: true,
       default: "",
       lowercase: true,
     },
@@ -17,6 +17,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
+      validate: {
+        validator: function (email) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        },
+        message: "Invalid email format",
+      },
     },
     phone: {
       type: String,
@@ -26,6 +33,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       select: false,
+      minlength: [8, "Password must be at least 8 characters long"],
     },
     role: {
       type: String,
@@ -56,5 +64,13 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Pre-save middleware to ensure email is always lowercase
+userSchema.pre("save", function (next) {
+  if (this.email && this.isModified("email")) {
+    this.email = this.email.toLowerCase().trim();
+  }
+  next();
+});
 
 export default mongoose.model("User", userSchema);
