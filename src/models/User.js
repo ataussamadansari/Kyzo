@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
     },
     avatar: {
       type: String,
-      default: "",
+      default: "https://res.cloudinary.com/dnar7ei8b/image/upload/v1764172451/user_hcil7p.png",
     },
     avatarId: {
       type: String,
