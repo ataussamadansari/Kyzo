@@ -32,7 +32,8 @@ export const getFollower = async (req, res) => {
       followers,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false, message: error.message });
   }
 };
 
@@ -93,6 +94,7 @@ export const getUserFollower = async (req, res) => {
     const targetUser = await User.findById(targetId);
     if (!targetUser)
       return res.status(404).json({
+      success: false,
         message: "User not found",
       });
 
@@ -100,6 +102,7 @@ export const getUserFollower = async (req, res) => {
     const allowed = await canViewProfile(viewerId, targetUser);
     if (!allowed) {
       return res.status(403).json({
+      success: false,
         message: "This profile is private",
       });
     }
@@ -140,12 +143,14 @@ export const getUserFollowing = async (req, res) => {
     const targetId = req.params.id;
 
     const targetUser = await User.findById(targetId);
-    if (!targetUser) return res.status(404).json({ message: "User not found" });
+    if (!targetUser) return res.status(404).json({
+      success: false, message: "User not found" });
 
     // Privacy check
     const allowed = await canViewProfile(viewerId, targetUser);
     if (!allowed) {
-      return res.status(403).json({ message: "This profile is private" });
+      return res.status(403).json({ 
+      success: false, message: "This profile is private" });
     }
 
     // Pagination
@@ -264,8 +269,8 @@ export const followUser = async (req, res) => {
 
     if (mutual) {
       const mNotif = await Notification.create({
-        user: myId,
-        sender: targetId,
+        user: myId, // A should get notification
+        sender: targetId, // B followed back
         type: "follow_back",
       });
 
@@ -300,11 +305,17 @@ export const unfollowUser = async (req, res) => {
     });
 
     if (!deleted)
-      return res.status(400).json({ message: "Not following this user" });
+      return res.status(400).json({
+        success: false,
+        message: "Not following this user",
+      });
 
-    res.json({ message: "User unfollowed" });
+    res.json({ success: true, message: "User unfollowed" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -320,7 +331,8 @@ export const acceptFollowRequest = async (req, res) => {
     });
 
     if (!request)
-      return res.status(400).json({ message: "No follow request found" });
+      return res.status(400).json({
+      success: false, message: "No follow request found" });
 
     // Create real follow
     await Follow.create({ follower: requesterId, following: meId });
@@ -346,8 +358,8 @@ export const acceptFollowRequest = async (req, res) => {
 
     if (mutual) {
       const mNotif = await Notification.create({
-        user: meId,
-        sender: requesterId,
+        user: requesterId, // requester gets follow_back
+        sender: meId,
         type: "follow_back",
       });
 
@@ -399,7 +411,8 @@ export const rejectFollowRequest = async (req, res) => {
       message: "Follow request rejected",
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false, message: error.message });
   }
 };
 
@@ -429,6 +442,7 @@ export const getFollowRequests = async (req, res) => {
       request,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false, message: error.message });
   }
 };

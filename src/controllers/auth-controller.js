@@ -13,7 +13,10 @@ export const register = async (req, res) => {
     const { name, email, password } = req.body;
 
     const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ message: "User already exists" });
+    if (exists) return res.status(400).json({ 
+      success: false,
+      message: "User already exists" 
+    });
 
     const hash = await bcrypt.hash(password, 10);
 
@@ -26,12 +29,16 @@ export const register = async (req, res) => {
     const token = generateToken(user);
 
     res.status(201).json({
+      success: true,
       message: "User register successfully",
       token,
       user,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: error.message
+     });
   }
 };
 
@@ -40,7 +47,8 @@ export const login = async (req, res) => {
   try {
     // include deleted & deleteAt for checks; password for auth
     const user = await User.findOne({ email }).select("+password");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({
+      success: false, message: "User not found" });
 
     // determine allowed window (minutes override days if provided)
     let ALLOWED_TIME_MS;
@@ -57,7 +65,8 @@ export const login = async (req, res) => {
 
       // if deletion window expired -> permanently deleted
       if (diff > ALLOWED_TIME_MS) {
-        return res.status(404).json({ message: "Account permanently deleted" });
+        return res.status(404).json({
+      success: false, message: "Account permanently deleted" });
       }
       // else: still within window — allow login but mark scheduledForDeletion
       // Continue to password check below (so we authenticate user)
@@ -66,7 +75,8 @@ export const login = async (req, res) => {
     // authenticate
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ 
+      success: false, message: "Invalid credentials" });
 
     const token = generateToken(user);
 
@@ -78,6 +88,7 @@ export const login = async (req, res) => {
       const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
 
       return res.status(200).json({
+      success: true,
         message:
           "Login successful — note: your account is scheduled for deletion.",
         token,
@@ -94,6 +105,7 @@ export const login = async (req, res) => {
 
     // normal active account
     return res.status(200).json({
+      success: true,
       message: "Login successful",
       token,
       user,
@@ -101,7 +113,8 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.error("login error:", error);
-    res.status(500).json({ message: "Catch " + error.message });
+    res.status(500).json({
+      success: false, message: error.message });
   }
 };
 
@@ -148,12 +161,14 @@ export const setUsername = async (req, res) => {
     const { username } = req.body;
 
     if (!username) {
-      return res.status(400).json({ message: "Username is required" });
+      return res.status(400).json({
+      success: false, message: "Username is required" });
     }
 
     const user = await User.findById(userId);
     if (!user)
       return res.status(404).json({
+      success: false,
         message: "User not found",
       });
 
@@ -165,7 +180,8 @@ export const setUsername = async (req, res) => {
 
       return res
         .status(400)
-        .json({ message: username + " username already taken", suggestions });
+        .json({
+      success: false, message: username + " username already taken", suggestions });
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -174,9 +190,11 @@ export const setUsername = async (req, res) => {
       { new: true }
     );
 
-    res.json({ message: "Username updated", user: updatedUser });
+    res.json({
+      success: true, message: "Username updated", user: updatedUser });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false, message: error.message });
   }
 };
 
@@ -221,12 +239,14 @@ export const setAvatar = async (req, res) => {
     const userId = req.user._id;
 
     if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ 
+      success: false, message: "No file uploaded" });
     }
 
     // fetch user to get previous avatar info (if any)
     const user = await User.findById(userId).select("+avatarId"); // adjust if you used select:false
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ 
+      success: false, message: "User not found" });
 
     // upload new image
     const result = await uploadToCloudinary(
@@ -255,12 +275,14 @@ export const setAvatar = async (req, res) => {
     );
 
     return res.status(200).json({
+      success: true,
       message: "Upload successful",
       avatar: updatedUser.avatar,
       user: updatedUser,
     });
   } catch (error) {
-    res.status(500).json({ message: "Error: " + error });
+    res.status(500).json({ 
+      success: false, message: "Error: " + error });
   }
 };
 
@@ -309,7 +331,8 @@ export const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "Email not found!" });
+    if (!user) return res.status(404).json({ 
+      success: false, message: "Email not found!" });
 
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -350,9 +373,11 @@ export const forgotPassword = async (req, res) => {
       html: html
     });
 
-    res.json({ message: "Reset link sent to your email.", resetURL });
+    res.json({ 
+      success: true, message: "Reset link sent to your email.", resetURL });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ 
+      success: false, message: err.message });
   }
 };
 
@@ -370,7 +395,8 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user)
-      return res.status(400).json({ message: "Invalid or expired link" });
+      return res.status(400).json({ 
+      success: false, message: "Invalid or expired link" });
 
     // Set new password
     user.password = await bcrypt.hash(newPassword, 10);
@@ -380,9 +406,11 @@ export const resetPassword = async (req, res) => {
 
     await user.save();
 
-    res.json({ message: "Password reset successfully!" });
+    res.json({ 
+      success: true, message: "Password reset successfully!" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({  
+      success: false, message: err.message });
   }
 };
 

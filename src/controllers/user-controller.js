@@ -8,10 +8,19 @@ dotenv.config();
 export const me = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+    if (!user)
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
 
-    res.json({ user });
+    res.json({
+      success: true,
+      message: "User fetched successfully",
+      user,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -22,13 +31,17 @@ export const updateMe = async (req, res) => {
   try {
     // Find User
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found!" });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found!" });
 
     const existUsername = await User.findOne({ username });
     if (existUsername && username != user.username)
-      return res
-        .status(400)
-        .json({ message: username + " username already exist!" });
+      return res.status(400).json({
+        success: false,
+        message: username + " username already exist!",
+      });
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -42,9 +55,13 @@ export const updateMe = async (req, res) => {
       }
     );
 
-    res.json({ message: "Profile updated", user: updatedUser });
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -54,19 +71,28 @@ export const changePassword = async (req, res) => {
     const { oldPassword, newPassword } = req.body;
 
     const user = await User.findById(req.user._id).select("+password");
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
     const isMatch = await bcrypt.compare(oldPassword, user.password);
     if (!isMatch)
-      return res.status(400).json({ message: "Old password incorrect" });
-
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect old password",
+      });
     const hash = await bcrypt.hash(newPassword, 10);
 
     user.password = hash;
     await user.save();
 
-    res.json({ message: "Password changed successfully" });
+    res.json({
+      success: true,
+      message: "Password updated successfully",
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -79,7 +105,10 @@ export const getSuggestedUsers = async (req, res) => {
 
     // Logged in user - get following list
     const me = await User.findById(myId).select("following");
-    if (!me) return res.status(404).json({ message: "User not found" });
+    if (!me)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
     // Build exclude array: include self + people you already follow
     const exclude = [
@@ -111,13 +140,15 @@ export const getSuggestedUsers = async (req, res) => {
     ]);
 
     res.json({
+      success: true,
+      message: "Suggested users fetched successfully",
       page,
       limit,
       count: users.length,
       users,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -128,11 +159,18 @@ export const getUserProfileById = async (req, res) => {
 
     const user = await User.findById(id).select("-password");
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
-    res.json({ user });
+    res.json({
+      success: true,
+      message: "User profile fetched successfully",
+      user,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -143,11 +181,18 @@ export const getUserProfile = async (req, res) => {
 
     const user = await User.findOne({ username }).select("-password");
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
-    res.json({ user });
+    res.json({
+      success: true,
+      message: "User profile fetched successfully",
+      user,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -159,13 +204,15 @@ export const deleteAccount = async (req, res) => {
       deleteAt: Date.now(), // store current timestamp
     });
 
-    const days = process.env.DELETE_TIME_DAYS || 30;
-    return res.json({
-      message: `Account scheduled for deletion (You have ${days} day(s) to recover)`,
-      recoverWithinDays: Number(days),
+    const days = Number(process.env.DELETE_TIME_DAYS || 30);
+
+    res.json({
+      success: true,
+      message: `Account marked for deletion. You can recover within ${days} days.`,
+      recoverWithinDays: days,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -173,18 +220,25 @@ export const deleteAccount = async (req, res) => {
 export const recoverAccount = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
     if (!user.deleted)
-      return res.json({ message: "Account is already active" });
+      return res.json({
+        success: true,
+        message: "Account is already active",
+      });
 
     const diff = Date.now() - new Date(user.deleteAt).getTime();
     const deleteWindowDays = Number(process.env.DELETE_TIME_DAYS || 30);
     const ALLOWED_TIME = daysToMs(deleteWindowDays);
 
-
     if (diff > ALLOWED_TIME) {
       return res.status(400).json({
-        message: "Account permanently deleted (recovery window expired)"
+        success: false,
+        message: "Recovery window expired. Account permanently deleted.",
       });
     }
 
@@ -193,8 +247,11 @@ export const recoverAccount = async (req, res) => {
     user.deleteAt = null;
     await user.save();
 
-    res.json({ message: "Account recovered successfully" });
+    res.json({
+      success: true,
+      message: "Account recovered successfully",
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
