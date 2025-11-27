@@ -17,11 +17,32 @@ export const getFollower = async (req, res) => {
     const totalFollowers = await Follow.countDocuments({ following: userId });
 
     const followers = await Follow.find({ following: userId })
-      .select("-following")
       .populate("follower", "name username avatar")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
+
+    const finalList = await Promise.all(
+      followers.map(async (item) => {
+        const user = item.follower;
+
+        const isFollowing = await Follow.exists({
+          follower: userId,
+          following: user._id,
+        });
+
+        const isFollowBack = true; // because B → A (this API)
+
+        return {
+          ...item.toObject(),
+          follower: {
+            ...user.toObject(),
+            isFollowing: Boolean(isFollowing),
+            isFollowBack,
+          },
+        };
+      })
+    );
 
     res.json({
       success: true,
@@ -29,11 +50,29 @@ export const getFollower = async (req, res) => {
       page,
       limit,
       totalPage: Math.ceil(totalFollowers / limit),
-      followers,
+      followers: finalList,
     });
+
+    // const followers = await Follow.find({ following: userId })
+    //   .select("-following")
+    //   .populate("follower", "name username avatar")
+    //   .skip(skip)
+    //   .limit(limit)
+    //   .sort({ createdAt: -1 });
+
+    // res.json({
+    //   success: true,
+    //   total: totalFollowers,
+    //   page,
+    //   limit,
+    //   totalPage: Math.ceil(totalFollowers / limit),
+    //   followers,
+    // });
   } catch (error) {
     res.status(500).json({
-      success: false, message: error.message });
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -49,11 +88,33 @@ export const getFollowing = async (req, res) => {
     const totalFollowing = await Follow.countDocuments({ follower: userId });
 
     const followings = await Follow.find({ follower: userId })
-      .select("-follower")
       .populate("following", "name username avatar")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
+
+    // Now compute follow-back status
+    const finalList = await Promise.all(
+      followings.map(async (item) => {
+        const user = item.following;
+
+        // A = logged user, B = item user
+        const isFollowing = true; // already because A → B (this API)
+        const isFollowBack = await Follow.exists({
+          follower: user._id,
+          following: userId,
+        });
+
+        return {
+          ...item.toObject(),
+          following: {
+            ...user.toObject(),
+            isFollowing,
+            isFollowBack: Boolean(isFollowBack),
+          },
+        };
+      })
+    );
 
     res.json({
       success: true,
@@ -61,8 +122,24 @@ export const getFollowing = async (req, res) => {
       page,
       limit,
       totalPage: Math.ceil(totalFollowing / limit),
-      followings,
+      followings: finalList,
     });
+
+    // const followings = await Follow.find({ follower: userId })
+    //   .select("-follower")
+    //   .populate("following", "name username avatar")
+    //   .skip(skip)
+    //   .limit(limit)
+    //   .sort({ createdAt: -1 });
+
+    // res.json({
+    //   success: true,
+    //   total: totalFollowing,
+    //   page,
+    //   limit,
+    //   totalPage: Math.ceil(totalFollowing / limit),
+    //   followings,
+    // });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -94,7 +171,7 @@ export const getUserFollower = async (req, res) => {
     const targetUser = await User.findById(targetId);
     if (!targetUser)
       return res.status(404).json({
-      success: false,
+        success: false,
         message: "User not found",
       });
 
@@ -102,7 +179,7 @@ export const getUserFollower = async (req, res) => {
     const allowed = await canViewProfile(viewerId, targetUser);
     if (!allowed) {
       return res.status(403).json({
-      success: false,
+        success: false,
         message: "This profile is private",
       });
     }
@@ -143,14 +220,19 @@ export const getUserFollowing = async (req, res) => {
     const targetId = req.params.id;
 
     const targetUser = await User.findById(targetId);
-    if (!targetUser) return res.status(404).json({
-      success: false, message: "User not found" });
+    if (!targetUser)
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
 
     // Privacy check
     const allowed = await canViewProfile(viewerId, targetUser);
     if (!allowed) {
-      return res.status(403).json({ 
-      success: false, message: "This profile is private" });
+      return res.status(403).json({
+        success: false,
+        message: "This profile is private",
+      });
     }
 
     // Pagination
@@ -332,7 +414,9 @@ export const acceptFollowRequest = async (req, res) => {
 
     if (!request)
       return res.status(400).json({
-      success: false, message: "No follow request found" });
+        success: false,
+        message: "No follow request found",
+      });
 
     // Create real follow
     await Follow.create({ follower: requesterId, following: meId });
@@ -412,7 +496,9 @@ export const rejectFollowRequest = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
-      success: false, message: error.message });
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -443,6 +529,8 @@ export const getFollowRequests = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
-      success: false, message: error.message });
+      success: false,
+      message: error.message,
+    });
   }
 };
