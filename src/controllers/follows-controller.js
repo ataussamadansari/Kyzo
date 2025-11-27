@@ -1,8 +1,8 @@
+import { notifyFollow, notifyFollowRequest, notifyFollowBack } from "../config/socket.js";
 import Follow from "../models/Follow.js";
 import FollowRequest from "../models/FollowRequest.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
-import { sendNotification } from "../config/socket.js";
 
 // ====================== GET ALL FOLLOWERS ======================
 export const getFollower = async (req, res) => {
@@ -265,23 +265,131 @@ export const getUserFollowing = async (req, res) => {
 };
 
 // ====================== FOLLOW USER (PRIVATE + PUBLIC) ======================
+// export const followUser = async (req, res) => {
+//   try {
+//     const myId = req.user.id;
+//     const targetId = req.params.id;
+
+//     if (myId.toString() === targetId)
+//       return res.status(400).json({
+//         success: false,
+//         message: "You cannot follow yourself",
+//       });
+
+//     const target = await User.findById(targetId);
+//     if (!target)
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found",
+//       });
+
+//     // Already following?
+//     const already = await Follow.findOne({
+//       follower: myId,
+//       following: targetId,
+//     });
+//     if (already)
+//       return res.status(400).json({
+//         success: false,
+//         message: "You are already following this user",
+//       });
+
+//     // Already requested?
+//     const requested = await FollowRequest.findOne({
+//       requester: myId,
+//       target: targetId,
+//     });
+//     if (requested)
+//       return res.status(400).json({
+//         success: false,
+//         message: "Follow request already sent",
+//       });
+
+//     // PRIVATE → request
+//     if (target.isPrivate) {
+//       await FollowRequest.create({ requester: myId, target: targetId });
+
+//       // Send notification
+//       const reqNotif = await Notification.create({
+//         user: targetId,
+//         sender: myId,
+//         type: "follow_request",
+//       });
+
+//       sendNotification(targetId, {
+//         type: "follow_request",
+//         sender: myId,
+//         notificationId: reqNotif._id,
+//       });
+
+//       return res.json({
+//         success: true,
+//         message: "Follow request sent successfully",
+//       });
+//     }
+
+//     // PUBLIC → dircet follow
+//     await Follow.create({ follower: myId, following: targetId });
+
+//     const followNotif = await Notification.create({
+//       user: targetId,
+//       sender: myId,
+//       type: "follow",
+//     });
+
+//     sendNotification(targetId, {
+//       type: "follow",
+//       sender: myId,
+//       notificationId: followNotif._id,
+//     });
+
+//     // ========== MUTUAL FOLLOW CHECK ==========
+//     const mutual = await Follow.findOne({
+//       follower: targetId,
+//       following: myId,
+//     });
+
+//     if (mutual) {
+//       const mNotif = await Notification.create({
+//         user: myId, // A should get notification
+//         sender: targetId, // B followed back
+//         type: "follow_back",
+//       });
+
+//       sendNotification(myId, {
+//         type: "follow_back",
+//         sender: targetId,
+//         notificationId: mNotif._id,
+//       });
+//     }
+
+//     res.json({
+//       success: true,
+//       message: `You are now following ${target.name}`,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
 export const followUser = async (req, res) => {
   try {
-    const myId = req.user.id;
+    const myId = req.user._id;
     const targetId = req.params.id;
 
     if (myId.toString() === targetId)
-      return res.status(400).json({
-        success: false,
-        message: "You cannot follow yourself",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "You cannot follow yourself" });
 
     const target = await User.findById(targetId);
     if (!target)
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
     // Already following?
     const already = await Follow.findOne({
@@ -289,10 +397,12 @@ export const followUser = async (req, res) => {
       following: targetId,
     });
     if (already)
-      return res.status(400).json({
-        success: false,
-        message: "You are already following this user",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You are already following this user",
+        });
 
     // Already requested?
     const requested = await FollowRequest.findOne({
@@ -300,27 +410,31 @@ export const followUser = async (req, res) => {
       target: targetId,
     });
     if (requested)
-      return res.status(400).json({
-        success: false,
-        message: "Follow request already sent",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Follow request already sent" });
 
-    // PRIVATE → request
+    // PRIVATE: create request + notif
     if (target.isPrivate) {
       await FollowRequest.create({ requester: myId, target: targetId });
 
-      // Send notification
       const reqNotif = await Notification.create({
         user: targetId,
         sender: myId,
         type: "follow_request",
       });
 
-      sendNotification(targetId, {
-        type: "follow_request",
-        sender: myId,
-        notificationId: reqNotif._id,
-      });
+      // emit to target
+      await notifyFollowRequest(
+        targetId,
+        {
+          _id: req.user._id,
+          name: req.user.name,
+          username: req.user.username,
+          avatar: req.user.avatar,
+        },
+        reqNotif._id
+      );
 
       return res.json({
         success: true,
@@ -328,39 +442,46 @@ export const followUser = async (req, res) => {
       });
     }
 
-    // PUBLIC → dircet follow
+    // PUBLIC: create follow + notif
     await Follow.create({ follower: myId, following: targetId });
-
     const followNotif = await Notification.create({
       user: targetId,
       sender: myId,
       type: "follow",
     });
 
-    sendNotification(targetId, {
-      type: "follow",
-      sender: myId,
-      notificationId: followNotif._id,
-    });
+    await notifyFollow(
+      targetId,
+      {
+        _id: req.user._id,
+        name: req.user.name,
+        username: req.user.username,
+        avatar: req.user.avatar,
+      },
+      followNotif._id
+    );
 
-    // ========== MUTUAL FOLLOW CHECK ==========
+    // MUTUAL check: if target already follows me
     const mutual = await Follow.findOne({
       follower: targetId,
       following: myId,
     });
-
     if (mutual) {
       const mNotif = await Notification.create({
-        user: myId, // A should get notification
-        sender: targetId, // B followed back
-        type: "follow_back",
-      });
-
-      sendNotification(myId, {
-        type: "follow_back",
+        user: myId,
         sender: targetId,
-        notificationId: mNotif._id,
+        type: "follow_back",
       });
+      await notifyFollowBack(
+        myId,
+        {
+          _id: target._id,
+          name: target.name,
+          username: target.username,
+          avatar: target.avatar,
+        },
+        mNotif._id
+      );
     }
 
     res.json({
@@ -368,14 +489,36 @@ export const followUser = async (req, res) => {
       message: `You are now following ${target.name}`,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // ====================== UNFOLLOW USER ======================
+// export const unfollowUser = async (req, res) => {
+//   try {
+//     const myId = req.user._id;
+//     const targetId = req.params.id;
+
+//     const deleted = await Follow.findOneAndDelete({
+//       follower: myId,
+//       following: targetId,
+//     });
+
+//     if (!deleted)
+//       return res.status(400).json({
+//         success: false,
+//         message: "Not following this user",
+//       });
+
+//     res.json({ success: true, message: "User unfollowed" });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
 export const unfollowUser = async (req, res) => {
   try {
     const myId = req.user._id;
@@ -387,17 +530,16 @@ export const unfollowUser = async (req, res) => {
     });
 
     if (!deleted)
-      return res.status(400).json({
-        success: false,
-        message: "Not following this user",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Not following this user" });
+
+    // emit unfollow to target
+    await notifyUnfollow(targetId, { _id: myId });
 
     res.json({ success: true, message: "User unfollowed" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
