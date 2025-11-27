@@ -48,7 +48,7 @@ export const getFollowing = async (req, res) => {
 
     const totalFollowing = await Follow.countDocuments({ follower: userId });
 
-    const following = await Follow.find({ follower: userId })
+    const followings = await Follow.find({ follower: userId })
       .select("-follower")
       .populate("following", "name username avatar")
       .skip(skip)
@@ -61,7 +61,7 @@ export const getFollowing = async (req, res) => {
       page,
       limit,
       totalPage: Math.ceil(totalFollowing / limit),
-      following,
+      followings,
     });
   } catch (error) {
     res.status(500).json({
@@ -160,7 +160,7 @@ export const getUserFollowing = async (req, res) => {
 
     const totalFollowing = await Follow.countDocuments({ follower: targetId });
 
-    const following = await Follow.find({ follower: targetId })
+    const followings = await Follow.find({ follower: targetId })
       .populate("following", "name username avatar")
       .skip(skip)
       .limit(limit)
@@ -172,7 +172,7 @@ export const getUserFollowing = async (req, res) => {
       page,
       limit,
       totalPage: Math.ceil(totalFollowing / limit),
-      following,
+      followings,
     });
   } catch (error) {
     res.status(500).json({
