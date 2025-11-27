@@ -21,8 +21,8 @@ userRouter.get('/:id/following', auth, getUserFollowing);
 userRouter.post('/follow/:id', auth, followUser);
 userRouter.post('/unfollow/:id', auth, unfollowUser);
 userRouter.get("/follow-requests", auth, getFollowRequests);
-userRouter.put("/follow-request/accept/:id", auth, acceptFollowRequest);
-userRouter.put("/follow-request/reject/:id", auth, rejectFollowRequest);
+userRouter.post("/follow-request/accept/:id", auth, acceptFollowRequest);
+userRouter.post("/follow-request/reject/:id", auth, rejectFollowRequest);
 
 userRouter.delete('/delete', auth, deleteAccount);
 userRouter.put('/recover', auth, recoverAccount);

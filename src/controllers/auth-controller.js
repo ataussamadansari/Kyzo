@@ -156,7 +156,6 @@ export const login = async (req, res) => {
 export const setUsername = async (req, res) => {
   try {
     const userId = req.user._id;
-
     const { username } = req.body;
 
     if (!username) {
@@ -166,17 +165,28 @@ export const setUsername = async (req, res) => {
       });
     }
 
+    // 🚫 Username validation (no spaces)
+    const usernameRegex = /^[a-z0-9._]+$/;
+
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid username format. Only lowercase letters, numbers, dot and underscore allowed. No spaces.",
+      });
+    }
+
     const user = await User.findById(userId);
-    if (!user)
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
+    }
 
     const existUsername = await User.findOne({ username });
-    // If same user is trying to set same username -> ok
+
     if (existUsername && existUsername._id.toString() !== userId.toString()) {
-      // Generate alternative usernames
+
       const suggestions = generateUsername(user.name, user.email);
 
       return res.status(400).json({
@@ -197,6 +207,7 @@ export const setUsername = async (req, res) => {
       message: "Username updated",
       user: updatedUser,
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -204,6 +215,7 @@ export const setUsername = async (req, res) => {
     });
   }
 };
+
 
 const generateUsername = (name, email) => {
   const base = name.toLowerCase().replace(/[^a-z0-9]/g, ""); // remove only space
