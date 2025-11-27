@@ -34,7 +34,7 @@ export const sendEmail = async ({ to, subject, text, html }) => {
 
 // RESNED 
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const resendEmail = async ({ to, subject, html }) => {
   try {

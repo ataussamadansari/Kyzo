@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
-import User from "../models/User";
-import Notification from "../models/Notification";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
 import { sendPushNotificationToUser } from "./push.js"; // implement separately
 
 
