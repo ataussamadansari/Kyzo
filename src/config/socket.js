@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import e from "cors";
 
 let io = null;
 
@@ -84,3 +85,13 @@ export const initSocket = (server) => {
 
   return io;
 };
+
+// =================== SOCKET HELPER FUCTIONS ============
+
+// Send notification to specific user
+export const emitToUser = (userId, event, data) => {
+  if(!io) return;
+  io.to(userRoom(userId)).emit(event, data);
+};
+
+
