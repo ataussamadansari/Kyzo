@@ -1,10 +1,11 @@
 import express from "express";
 import { auth } from "../middlewares/auth-middleware.js"
-import { changePassword, deleteAccount, getSuggestedUsers, getUserProfile, getUserProfileById, me, recoverAccount, updateMe } from "../controllers/user-controller.js";
+import { changePassword, deleteAccount, getSuggestedUsers, getUserProfile, getUserProfileById, me, recoverAccount, status, updateMe } from "../controllers/user-controller.js";
 import { acceptFollowRequest, followUser, getFollower, getFollowing, getFollowRequests, getUserFollower, getUserFollowing, rejectFollowRequest, unfollowUser } from "../controllers/follows-controller.js";
 
 const userRouter = express.Router();
 
+userRouter.get('/status/:id', auth, status);
 userRouter.get('/me', auth, me);
 userRouter.put('/update', auth, updateMe);
 userRouter.put('/change-password', auth, changePassword);

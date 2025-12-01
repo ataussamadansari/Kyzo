@@ -4,6 +4,22 @@ import dotenv from "dotenv";
 import { daysToMs } from "../utils/time.js";
 dotenv.config();
 
+
+export const status = async (req, res) => {
+  const userId = req.params.id;
+  const user = await User.findById(userId).select("isOnline lastSeen");
+  if (!user)
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+
+  return res.json({
+    online: user.isOnline,
+    lastSeen: user.lastSeen,
+  });
+};
+
 // ====================== GET LOGGED IN USER ======================
 export const me = async (req, res) => {
   try {
