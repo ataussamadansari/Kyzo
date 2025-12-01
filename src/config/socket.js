@@ -48,15 +48,14 @@ export const initSocket = (server) => {
         uid,
         {
           isOnline: true,
-        },
-        {
-          new: true,
         }
       );
     }
 
     onlineUser.get(uid).add(socket.id);
     console.log(`User ${uid} connected`);
+    const user = await User.findById(uid);
+    console.log(`User: ${user}`);
 
     // Ping
     socket.on("client:ping", () => socket.emit("server:pong"));
@@ -76,9 +75,6 @@ export const initSocket = (server) => {
           {
             isOnline: false,
             lastSeen: new Date(),
-          },
-          {
-            new: true,
           }
         );
 
