@@ -4,9 +4,7 @@ import User from "../models/User.js";
 
 let io = null;
 
-// Memory map: userId → Set(socketIds)
 const onlineUser = new Map();
-
 const userRoom = (userId) => `user:${userId}`;
 
 export const isUserOnline = (userId) => {
@@ -20,16 +18,17 @@ export const initSocket = (server) => {
     cors: { origin: "*" },
   });
 
-  // AUTH MIDDLEWARE
-  io.use(async, (socket, next) => {
+  // ---------------- AUTH MIDDLEWARE ----------------
+  io.use(async (socket, next) => {
     try {
       const token =
         socket.handshake.auth?.token ||
         socket.handshake.headers.authorization?.replace("Bearer ", "");
 
-      if (token) return next(new Error("No auth token"));
+      if (!token) return next(new Error("No auth token"));
 
-      const decoded = jwt.verify(token, [process.env.JWT_SECRET]);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
       socket.userId = decoded.id;
       next();
     } catch (error) {
@@ -37,43 +36,40 @@ export const initSocket = (server) => {
     }
   });
 
+  // ---------------- CONNECTION ----------------
   io.on("connection", async (socket) => {
     const uid = socket.userId;
 
-    // join room
     socket.join(userRoom(uid));
 
-    // Add to map
-    if(!onlineUser.has(uid)) {
+    if (!onlineUser.has(uid)) {
       onlineUser.set(uid, new Set());
       await User.findByIdAndUpdate(uid, {
-        isOnline: true
+        isOnline: true,
       });
     }
 
     onlineUser.get(uid).add(socket.id);
     console.log(`User ${uid} connected`);
 
-    // ! CLIENT PING CKECK (optional)
+    // Ping
     socket.on("client:ping", () => socket.emit("server:pong"));
 
-    // ON DISCONNECT
+    // ---------------- DISCONNECT ----------------
     socket.on("disconnect", async () => {
       const sockets = onlineUser.get(uid);
-
-      if(!sockets) return;
+      if (!sockets) return;
 
       sockets.delete(socket.id);
 
-      if(socket.size === 0) {
-        // User completely offline
+      if (sockets.size === 0) {
         onlineUser.delete(uid);
 
         await User.findByIdAndUpdate(uid, {
           isOnline: false,
-          lastSeen: new Date()
+          lastSeen: new Date(),
         });
-        
+
         console.log(`User ${uid} is now offline`);
       }
     });
