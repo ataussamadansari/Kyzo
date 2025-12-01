@@ -2,7 +2,7 @@ import Follow from "../models/Follow.js";
 import FollowRequest from "../models/FollowRequest.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
-import { emitToUser } from "../socket/socket.js";
+import { emitToUser } from "../config/socket.js";
 
 // ====================== GET ALL FOLLOWERS ======================
 export const getFollower = async (req, res) => {
