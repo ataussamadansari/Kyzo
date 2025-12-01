@@ -44,9 +44,15 @@ export const initSocket = (server) => {
 
     if (!onlineUser.has(uid)) {
       onlineUser.set(uid, new Set());
-      await User.findByIdAndUpdate(uid, {
-        isOnline: true,
-      });
+      await User.findByIdAndUpdate(
+        uid,
+        {
+          isOnline: true,
+        },
+        {
+          new: true,
+        }
+      );
     }
 
     onlineUser.get(uid).add(socket.id);
@@ -65,10 +71,16 @@ export const initSocket = (server) => {
       if (sockets.size === 0) {
         onlineUser.delete(uid);
 
-        await User.findByIdAndUpdate(uid, {
-          isOnline: false,
-          lastSeen: new Date(),
-        });
+        await User.findByIdAndUpdate(
+          uid,
+          {
+            isOnline: false,
+            lastSeen: new Date(),
+          },
+          {
+            new: true,
+          }
+        );
 
         console.log(`User ${uid} is now offline`);
       }
