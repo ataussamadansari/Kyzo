@@ -1,8 +1,6 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import e from "cors";
-import { unfollowUser } from "../controllers/follows-controller.js";
 
 let io = null;
 
@@ -46,14 +44,18 @@ export const initSocket = (server) => {
 
     if (!onlineUser.has(uid)) {
       onlineUser.set(uid, new Set());
-      await User.findByIdAndUpdate(uid, {
-        isOnline: true,
-        lastSeen: null,
-      });
+      await User.findByIdAndUpdate(
+        uid,
+        {
+          isOnline: true,
+        }
+      );
     }
 
     onlineUser.get(uid).add(socket.id);
     console.log(`User ${uid} connected`);
+    const user = await User.findById(uid);
+    console.log(`User: ${user}`);
 
     // Ping
     socket.on("client:ping", () => socket.emit("server:pong"));
@@ -68,10 +70,13 @@ export const initSocket = (server) => {
       if (sockets.size === 0) {
         onlineUser.delete(uid);
 
-        await User.findByIdAndUpdate(uid, {
-          isOnline: false,
-          lastSeen: new Date(),
-        });
+        await User.findByIdAndUpdate(
+          uid,
+          {
+            isOnline: false,
+            lastSeen: new Date(),
+          }
+        );
 
         console.log(`User ${uid} is now offline`);
       }
@@ -90,11 +95,8 @@ export const emitToUser = (userId, event, data) => {
 };
 
 // Follow notification
-export const notifyFollow = async (
-  targetUserId,
-  followerData,
-  notificationId
-) => {
+export const notifyFollow = async (targetUserId, followerUserId, followerData, notificationId) => {
+  // Notify target user (User B) - someone followed you
   emitToUser(targetUserId, "notification:follow", {
     type: "follow",
     sender: followerData,
@@ -102,31 +104,36 @@ export const notifyFollow = async (
     timestamp: new Date(),
   });
 
-  // Update follower count
-  const followerCount = await User.findById(targetUserId).select(
-    "followersCount"
-  );
+  // Update target user's follower count
+  const targetUser = await User.findById(targetUserId).select("followersCount");
   emitToUser(targetUserId, "update:followers_count", {
-    count: followerCount?.followersCount || 0,
+    count: targetUser?.followersCount || 0,
+  });
+
+  // Update follower user's (User A) following count
+  const followerUser = await User.findById(followerUserId).select("followingCount");
+  emitToUser(followerUserId, "update:following_count", {
+    count: followerUser?.followingCount || 0,
   });
 };
 
 // Unfollow notification
-export const notifyUnfollow = async (targetUserId, unfollowerData) => {
-  const followerCount = await User.findById(targetUserId).select(
-    "followersCount"
-  );
+export const notifyUnfollow = async (targetUserId, unfollowerUserId) => {
+  // Update target user's (User B) follower count
+  const targetUser = await User.findById(targetUserId).select("followersCount");
   emitToUser(targetUserId, "update:followers_count", {
-    count: followerCount?.followersCount || 0,
+    count: targetUser?.followersCount || 0,
+  });
+
+  // Update unfollower user's (User A) following count
+  const unfollowerUser = await User.findById(unfollowerUserId).select("followingCount");
+  emitToUser(unfollowerUserId, "update:following_count", {
+    count: unfollowerUser?.followingCount || 0,
   });
 };
 
 // Follow request notification
-export const notifyFollowRequest = async (
-  targetUserId,
-  requesterData,
-  notificationId
-) => {
+export const notifyFollowRequest = async (targetUserId, requesterData, notificationId) => {
   emitToUser(targetUserId, "notification:follow_request", {
     type: "follow_request",
     sender: requesterData,
@@ -136,11 +143,7 @@ export const notifyFollowRequest = async (
 };
 
 // Follow back notification
-export const notifyFollowBack = async (
-  targetUserId,
-  followerData,
-  notificationId
-) => {
+export const notifyFollowBack = async (targetUserId, followerData, notificationId) => {
   emitToUser(targetUserId, "notification:follow_back", {
     type: "follow_back",
     sender: followerData,
@@ -149,20 +152,14 @@ export const notifyFollowBack = async (
   });
 
   // Update following count
-  const followingCount = await User.findById(targetUserId).select(
-    "followingCount"
-  );
+  const followingCount = await User.findById(targetUserId).select("followingCount");
   emitToUser(targetUserId, "update:following_count", {
     count: followingCount?.followingCount || 0,
   });
 };
 
 // Request accepted notification
-export const notifyRequestAccepted = async (
-  requesterUserId,
-  accepterData,
-  notificationId
-) => {
+export const notifyRequestAccepted = async (requesterUserId, accepterData, notificationId) => {
   emitToUser(requesterUserId, "notification:request_accepted", {
     type: "request_accepted",
     sender: accepterData,
@@ -171,20 +168,14 @@ export const notifyRequestAccepted = async (
   });
 
   // Update following count for requester
-  const followingCount = await User.findById(requesterUserId).select(
-    "followingCount"
-  );
+  const followingCount = await User.findById(requesterUserId).select("followingCount");
   emitToUser(requesterUserId, "update:following_count", {
     count: followingCount?.followingCount || 0,
   });
 };
 
 // Request rejected notification
-export const notifyRequestRejected = async (
-  requesterUserId,
-  rejecterData,
-  notificationId
-) => {
+export const notifyRequestRejected = async (requesterUserId, rejecterData, notificationId) => {
   emitToUser(requesterUserId, "notification:request_rejected", {
     type: "request_rejected",
     sender: rejecterData,

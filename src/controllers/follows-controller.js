@@ -2,6 +2,7 @@ import Follow from "../models/Follow.js";
 import FollowRequest from "../models/FollowRequest.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+
 import {
   notifyFollow,
   notifyUnfollow,
@@ -9,6 +10,7 @@ import {
   notifyFollowBack,
   notifyRequestAccepted,
   notifyRequestRejected,
+  emitToUser,
 } from "../config/socket.js";
 
 // ====================== GET ALL FOLLOWERS ======================
@@ -404,10 +406,12 @@ export const followUser = async (req, res) => {
       following: targetId,
     });
     if (already)
-      return res.status(400).json({
-        success: false,
-        message: "You are already following this user",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You are already following this user",
+        });
 
     // Already requested?
     const requested = await FollowRequest.findOne({
@@ -449,7 +453,6 @@ export const followUser = async (req, res) => {
 
     // PUBLIC: create follow + notif
     await Follow.create({ follower: myId, following: targetId });
-
     const followNotif = await Notification.create({
       user: targetId,
       sender: myId,
@@ -458,6 +461,7 @@ export const followUser = async (req, res) => {
 
     await notifyFollow(
       targetId,
+      myId,
       {
         _id: req.user._id,
         name: req.user.name,
@@ -540,8 +544,8 @@ export const unfollowUser = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Not following this user" });
 
-    // emit unfollow to target
-    await notifyUnfollow(targetId, { _id: myId });
+    // emit unfollow to both users
+    await notifyUnfollow(targetId, myId);
 
     res.json({ success: true, message: "User unfollowed" });
   } catch (error) {
@@ -586,6 +590,12 @@ export const acceptFollowRequest = async (req, res) => {
       },
       notif._id
     );
+
+    // Update accepter's (me) follower count
+    const accepterUser = await User.findById(meId).select("followersCount");
+    emitToUser(meId, "update:followers_count", {
+      count: accepterUser?.followersCount || 0,
+    });
 
     // ========== MUTUAL FOLLOW CHECK ==========
     const mutual = await Follow.findOne({
