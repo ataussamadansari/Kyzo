@@ -48,6 +48,7 @@ export const initSocket = (server) => {
         uid,
         {
           isOnline: true,
+          lastSeen: null
         }
       );
     }
