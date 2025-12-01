@@ -42,7 +42,8 @@ const userSchema = new mongoose.Schema(
     },
     avatar: {
       type: String,
-      default: "https://res.cloudinary.com/dnar7ei8b/image/upload/v1764219249/336635642_bc9fd4bd-de9b-4555-976c-8360576c6708_vuwna0.jpg",
+      default:
+        "https://res.cloudinary.com/dnar7ei8b/image/upload/v1764219249/336635642_bc9fd4bd-de9b-4555-976c-8360576c6708_vuwna0.jpg",
     },
     avatarId: {
       type: String,
@@ -52,6 +53,18 @@ const userSchema = new mongoose.Schema(
     bio: {
       type: String,
       default: "",
+    },
+    followersCount: {
+      type: Number,
+      default: 0,
+    },
+    followingCount: {
+      type: Number,
+      default: 0,
+    },
+    postsCount: {
+      type: Number,
+      default: 0,
     },
     isPrivate: { type: Boolean, default: false },
     isOnline: { type: Boolean, default: false },

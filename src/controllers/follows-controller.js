@@ -3,7 +3,6 @@ import FollowRequest from "../models/FollowRequest.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 import {
-  emitToUser,
   notifyFollow,
   notifyUnfollow,
   notifyFollowRequest,
@@ -451,16 +450,6 @@ export const followUser = async (req, res) => {
     // PUBLIC: create follow + notif
     await Follow.create({ follower: myId, following: targetId });
 
-    // 🔥 REALTIME — target ko follow update bhejo
-    emitToUser(targetId, "user:follow", {
-      follower: {
-        _id: myId,
-        name: req.user.name,
-        username: req.user.username,
-        avatar: req.user.avatar,
-      },
-    });
-
     const followNotif = await Notification.create({
       user: targetId,
       sender: myId,
@@ -499,16 +488,6 @@ export const followUser = async (req, res) => {
         },
         mNotif._id
       );
-
-      // 🔥 REALTIME — me (myId) ko follow_back ka event
-      emitToUser(myId, "user:follow_back", {
-        follower: {
-          _id: target._id,
-          name: target.name,
-          username: target.username,
-          avatar: target.avatar,
-        },
-      });
     }
 
     res.json({
@@ -554,11 +533,6 @@ export const unfollowUser = async (req, res) => {
     const deleted = await Follow.findOneAndDelete({
       follower: myId,
       following: targetId,
-    });
-
-    // 🔥 REALTIME — unfollow event bhejo
-    emitToUser(targetId, "user:unfollow", {
-      unfollowerId: myId,
     });
 
     if (!deleted)
