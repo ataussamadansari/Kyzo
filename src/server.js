@@ -1,24 +1,18 @@
 import http from "http";
 import app from "./app.js";
-import { Server } from "socket.io";
 import dotenv from "dotenv";
 import "./cron/delete-expired-users.js";
 import connectDB from "./config/db.js";
+import { initSocket } from "./config/socket.js";
+
 dotenv.config();
 
 const server = http.createServer(app);
 
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-    }
-});
+// Initialize Socket.IO with authentication
+initSocket(server);
 
-io.on("connection", (socket) => {
-    console.log("🔥 User connected:", socket.id);
-});
-
-connectDB().catch((err) => console.error("DB connection failed:", err));
+connectDB().catch((err) => console.error("DB connection failed:", err));
 
 const PORT = process.env.PORT || 5000;
 
