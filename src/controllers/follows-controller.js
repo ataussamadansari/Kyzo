@@ -1,4 +1,3 @@
-import { notifyFollow, notifyFollowRequest, notifyFollowBack, notifyUnfollow } from "../config/socket.js";
 import Follow from "../models/Follow.js";
 import FollowRequest from "../models/FollowRequest.js";
 import Notification from "../models/Notification.js";
