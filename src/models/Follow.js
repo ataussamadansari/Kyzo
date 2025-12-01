@@ -47,15 +47,35 @@ followSchema.post("findOneAndDelete", async function (doc) {
   try {
     const User = mongoose.model("User");
 
-    // Decrement follower's followingCount
-    await User.findByIdAndUpdate(doc.follower, {
-      $inc: { followingCount: -1 },
-    });
+    // Decrement follower's followingCount (prevent negative)
+    await User.findByIdAndUpdate(
+      doc.follower,
+      {
+        $inc: { followingCount: -1 },
+      }
+    );
+    // Ensure it doesn't go below 0
+    await User.findByIdAndUpdate(
+      doc.follower,
+      {
+        $max: { followingCount: 0 },
+      }
+    );
 
-    // Decrement following's followersCount
-    await User.findByIdAndUpdate(doc.following, {
-      $inc: { followersCount: -1 },
-    });
+    // Decrement following's followersCount (prevent negative)
+    await User.findByIdAndUpdate(
+      doc.following,
+      {
+        $inc: { followersCount: -1 },
+      }
+    );
+    // Ensure it doesn't go below 0
+    await User.findByIdAndUpdate(
+      doc.following,
+      {
+        $max: { followersCount: 0 },
+      }
+    );
 
     console.log(`✅ Counts decremented: ${doc.follower} ✗ ${doc.following}`);
   } catch (error) {
