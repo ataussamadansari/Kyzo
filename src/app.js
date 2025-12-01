@@ -11,5 +11,6 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/user/", userRouter);
+app.use("/api/notifications", notificationRouter);
 
 export default app;
