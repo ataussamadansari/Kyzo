@@ -54,8 +54,6 @@ export const initSocket = (server) => {
 
     onlineUser.get(uid).add(socket.id);
     console.log(`User ${uid} connected`);
-    const user = await User.findById(uid);
-    console.log(`User: ${user}`);
 
     // Ping
     socket.on("client:ping", () => socket.emit("server:pong"));
