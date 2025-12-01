@@ -2,7 +2,15 @@ import Follow from "../models/Follow.js";
 import FollowRequest from "../models/FollowRequest.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
-import { emitToUser } from "../config/socket.js";
+import {
+  emitToUser,
+  notifyFollow,
+  notifyUnfollow,
+  notifyFollowRequest,
+  notifyFollowBack,
+  notifyRequestAccepted,
+  notifyRequestRejected,
+} from "../config/socket.js";
 
 // ====================== GET ALL FOLLOWERS ======================
 export const getFollower = async (req, res) => {
@@ -594,11 +602,16 @@ export const acceptFollowRequest = async (req, res) => {
       type: "request_accepted",
     });
 
-    sendNotification(requesterId, {
-      type: "request_accepted",
-      sender: meId,
-      notificationId: notif._id,
-    });
+    await notifyRequestAccepted(
+      requesterId,
+      {
+        _id: req.user._id,
+        name: req.user.name,
+        username: req.user.username,
+        avatar: req.user.avatar,
+      },
+      notif._id
+    );
 
     // ========== MUTUAL FOLLOW CHECK ==========
     const mutual = await Follow.findOne({
@@ -613,11 +626,16 @@ export const acceptFollowRequest = async (req, res) => {
         type: "follow_back",
       });
 
-      sendNotification(requesterId, {
-        type: "follow_back",
-        sender: meId,
-        notificationId: mNotif._id,
-      });
+      await notifyFollowBack(
+        requesterId,
+        {
+          _id: req.user._id,
+          name: req.user.name,
+          username: req.user.username,
+          avatar: req.user.avatar,
+        },
+        mNotif._id
+      );
     }
 
     res.json({
@@ -650,11 +668,16 @@ export const rejectFollowRequest = async (req, res) => {
       type: "request_rejected",
     });
 
-    sendNotification(requesterId, {
-      type: "request_rejected",
-      sender: meId,
-      notificationId: notif._id,
-    });
+    await notifyRequestRejected(
+      requesterId,
+      {
+        _id: req.user._id,
+        name: req.user.name,
+        username: req.user.username,
+        avatar: req.user.avatar,
+      },
+      notif._id
+    );
 
     res.json({
       success: true,

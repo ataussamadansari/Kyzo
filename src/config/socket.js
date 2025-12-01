@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import e from "cors";
+import { unfollowUser } from "../controllers/follows-controller.js";
 
 let io = null;
 
@@ -94,4 +95,59 @@ export const emitToUser = (userId, event, data) => {
   io.to(userRoom(userId)).emit(event, data);
 };
 
+// Follow notification
+export const notifyFollow = async (targetUserId, followerData, notificationId) => {
+  emitToUser(targetUserId, "notification:follow", {
+    tpye: "follow",
+    sender: followerData,
+    notificationId,
+    timestamp: new Date()
+  });
+};
 
+// Unfollow notification
+export const notifyUnfollow = async (targetUserId, unfollowerData) => {
+
+};
+
+
+// Follow request notification
+export const notifyFollowRequest = async (targetUserId, requesterData, notificationId) => {
+  emitToUser(targetUserId, "notification:follow_request", {
+    tpye: "follow_request",
+    sender: requesterData,
+    notificationId,
+    timestamp: new Date()
+  });
+};
+
+// Follow back notification
+export const notifyFollowBack = async (targetUserId, followerData, notificationId) => {
+  emitToUser(targetUserId, "notification:follow_back", {
+    type: "follow_back",
+    sender: followerData,
+    notificationId,
+    timestamp: new Date(),
+  });
+};
+
+
+// Request accepted notification
+export const notifyRequestAccepted = async (requesterUserId, accepterData, notificationId) => {
+  emitToUser(requesterUserId, "notification:request_accepted", {
+    type: "request_accepted",
+    sender: accepterData,
+    notificationId,
+    timestamp: new Date(),
+  });
+};
+
+// Request rejected notification
+export const notifyRequestRejected = async (requesterUserId, rejecterData, notificationId) => {
+  emitToUser(requesterUserId, "notification:request_rejected", {
+    type: "request_rejected",
+    sender: rejecterData,
+    notificationId,
+    timestamp: new Date(),
+  });
+};
