@@ -115,7 +115,7 @@ export const changePassword = async (req, res) => {
 // ====================== GET RANDOM / SUGGESTED USERS ======================
 export const getSuggestedUsers = async (req, res) => {
   try {
-    const myId = req.user.id;
+    const myId = req.user._id;
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 10));
 
@@ -155,13 +155,38 @@ export const getSuggestedUsers = async (req, res) => {
       },
     ]);
 
+    // Add isFollowing and isFollowBack for each user
+    const Follow = (await import("../models/Follow.js")).default;
+    
+    const finalList = await Promise.all(
+      users.map(async (user) => {
+        // Check if logged user follows this suggested user
+        const isFollowing = await Follow.exists({
+          follower: myId,
+          following: user._id,
+        });
+
+        // Check if this suggested user follows logged user back
+        const isFollowBack = await Follow.exists({
+          follower: user._id,
+          following: myId,
+        });
+
+        return {
+          ...user,
+          isFollowing: Boolean(isFollowing),
+          isFollowBack: Boolean(isFollowBack),
+        };
+      })
+    );
+
     res.json({
       success: true,
       message: "Suggested users fetched successfully",
       page,
       limit,
-      count: users.length,
-      users,
+      count: finalList.length,
+      users: finalList,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
