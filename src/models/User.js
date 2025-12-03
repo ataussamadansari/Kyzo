@@ -54,6 +54,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    links: [
+      {
+        title: String,
+        url: String,
+      },
+    ],
     followersCount: {
       type: Number,
       default: 0,

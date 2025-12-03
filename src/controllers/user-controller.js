@@ -43,7 +43,8 @@ export const me = async (req, res) => {
 // ====================== UPDATE PROFILE ======================
 export const updateMe = async (req, res) => {
   const userId = req.user.id;
-  const { name, username, bio, avatar } = req.body;
+  const { name, username, bio, phone, links, isPrivate } = req.body;
+
   try {
     // Find User
     const user = await User.findById(userId);
@@ -52,34 +53,45 @@ export const updateMe = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found!" });
 
-    const existUsername = await User.findOne({ username });
-    if (existUsername && username != user.username)
-      return res.status(400).json({
-        success: false,
-        message: username + " username already exist!",
-      });
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        name: name || user.name,
-        username: username || user.username,
-        bio: bio ?? user.bio,
-      },
-      {
-        new: true,
+    // Check if username already exists (except current user)
+    if (username) {
+      const existingUsername = await User.findOne({ username });
+      if (existingUsername && existingUsername._id.toString() !== userId) {
+        return res.status(400).json({
+          success: false,
+          message: `${username} username already exists!`,
+        });
       }
-    );
+    }
+
+    const updatedData = {
+      name: name ?? user.name,
+      username: username ?? user.username,
+      bio: bio ?? user.bio,
+      phone: phone ?? user.phone,
+      isPrivate: isPrivate ?? user.isPrivate
+    };
+
+    // Links update (only if provided & valid array)
+    if (Array.isArray(links)) {
+      updatedData.links = links;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updatedData, {
+      new: true,
+    });
 
     res.json({
       success: true,
       message: "Profile updated successfully",
       user: updatedUser,
     });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // ====================== CHANGE PASSWORD ======================
 export const changePassword = async (req, res) => {
