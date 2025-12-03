@@ -70,48 +70,68 @@ export const getPost = async (req, res) => {
     const post = await Post.findOne({
       _id: req.params.id,
       isDeleted: false,
-    }).populate("user", "name username avatar");
+    })
+      .populate("user", "name username avatar bio isVerified")
+      .populate("mentions", "name username avatar");
 
-    if (!post) return res.status(404).json({ message: "Post not found" });
+    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
 
     res.json({ success: true, post });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 export const getFeed = async (req, res) => {
   try {
-    const posts = await Post.find({ isDeleted: false })
-      .populate("user", "name username avatar")
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
-    res.json({ success: true, posts });
+    const posts = await Post.find({ isDeleted: false })
+      .populate("user", "name username avatar bio isVerified")
+      .populate("mentions", "name username avatar")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Post.countDocuments({ isDeleted: false });
+
+    res.json({ 
+      success: true, 
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 export const editPost = async (req, res) => {
   try {
     const updates = {};
-    const allowed = ["description", "tags", "mentions", "images", "videos", "location"];
+    const allowed = ["description", "tags", "mentions", "location"];
 
     allowed.forEach((f) => {
       if (req.body[f] !== undefined) updates[f] = req.body[f];
     });
 
     const post = await Post.findOneAndUpdate(
-      { _id: req.params.id, user: req.user.id },
+      { _id: req.params.id, user: req.user.id, isDeleted: false },
       updates,
       { new: true }
-    );
+    ).populate("user", "name username avatar");
 
-    if (!post) return res.status(404).json({ message: "Post not found or unauthorized" });
+    if (!post) return res.status(404).json({ success: false, message: "Post not found or unauthorized" });
 
-    res.json({ success: true, post });
+    res.json({ success: true, message: "Post updated", post });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -120,16 +140,17 @@ export const deletePost = async (req, res) => {
     const post = await Post.findOne({
       _id: req.params.id,
       user: req.user.id,
+      isDeleted: false
     });
 
-    if (!post) return res.status(404).json({ message: "Post not found" });
+    if (!post) return res.status(404).json({ success: false, message: "Post not found or already deleted" });
 
     post.isDeleted = true;
     await post.save();
 
-    res.json({ success: true, message: "Post deleted" });
+    res.json({ success: true, message: "Post deleted successfully" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -138,14 +159,14 @@ export const toggleLike = async (req, res) => {
     const post = await Post.findById(req.params.id);
 
     if (!post || post.isDeleted)
-      return res.status(404).json({ message: "Post not found" });
+      return res.status(404).json({ success: false, message: "Post not found" });
 
     const userId = req.user.id;
     const liked = post.likes.includes(userId);
 
     if (liked) {
       post.likes.pull(userId);
-      post.likesCount--;
+      post.likesCount = Math.max(0, post.likesCount - 1);
     } else {
       post.likes.push(userId);
       post.likesCount++;
@@ -155,11 +176,12 @@ export const toggleLike = async (req, res) => {
 
     res.json({
       success: true,
+      message: liked ? "Post unliked" : "Post liked",
       liked: !liked,
       likesCount: post.likesCount,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -167,14 +189,15 @@ export const sharePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
 
-    if (!post) return res.status(404).json({ message: "Post not found" });
+    if (!post || post.isDeleted) 
+      return res.status(404).json({ success: false, message: "Post not found" });
 
     post.shareCount++;
     await post.save();
 
-    res.json({ success: true, shareCount: post.shareCount });
+    res.json({ success: true, message: "Post shared", shareCount: post.shareCount });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -182,17 +205,115 @@ export const reportPost = async (req, res) => {
   try {
     const { reason } = req.body;
 
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: "Post not found" });
+    if (!reason || reason.trim() === "") {
+      return res.status(400).json({ success: false, message: "Report reason is required" });
+    }
 
-    post.reports.push({ user: req.user.id, reason });
+    const post = await Post.findById(req.params.id);
+    if (!post || post.isDeleted) 
+      return res.status(404).json({ success: false, message: "Post not found" });
+
+    // Check if user already reported this post
+    const alreadyReported = post.reports.some(
+      report => report.user.toString() === req.user.id
+    );
+
+    if (alreadyReported) {
+      return res.status(400).json({ success: false, message: "You have already reported this post" });
+    }
+
+    post.reports.push({ user: req.user.id, reason: reason.trim() });
     post.reportsCount++;
 
     await post.save();
 
-    res.json({ success: true, message: "Post reported" });
+    res.json({ success: true, message: "Post reported successfully" });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getUserPosts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const posts = await Post.find({ 
+      user: userId, 
+      isDeleted: false,
+      type: { $ne: 'story' } // Exclude stories
+    })
+      .populate("user", "name username avatar bio isVerified")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Post.countDocuments({ 
+      user: userId, 
+      isDeleted: false,
+      type: { $ne: 'story' }
+    });
+
+    res.json({ 
+      success: true, 
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getPostComments = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const post = await Post.findOne({ _id: postId, isDeleted: false });
+    if (!post) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    const Comment = (await import("../models/Comment.js")).default;
+    
+    const comments = await Comment.find({ 
+      post: postId, 
+      isDeleted: false,
+      parent: null // Only top-level comments
+    })
+      .populate("user", "name username avatar")
+      .populate("mentions", "name username")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Comment.countDocuments({ 
+      post: postId, 
+      isDeleted: false,
+      parent: null
+    });
+
+    res.json({ 
+      success: true, 
+      comments,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
